@@ -3,7 +3,7 @@
 Newest first. Add changes under "## Unreleased"; the Release workflow replaces that heading with the
 version number and date when it publishes a release.
 
-## Unreleased
+## 0.1.0 (2026-11-07)
 
 First version.
 
