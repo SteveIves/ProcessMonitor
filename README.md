@@ -211,9 +211,15 @@ the config: `Stop-ScheduledTask process-monitor; Start-ScheduledTask process-mon
 
 ## Download or build
 
-**Releases**: pushing a tag such as `v0.1.0` makes GitHub Actions
-(`.github/workflows/release.yml`) build every platform and attach the binaries, example configs
-and service files to a GitHub release.
+**Releases**: download the file for your machine from the
+[Releases page](https://github.com/SteveIves/ProcessMonitor/releases).
+
+To publish a release, run the **Release** workflow (Actions > Release > Run workflow, choosing
+patch, minor or major). It runs the tests, increases the version number (the first run uses the
+version in `Cargo.toml` as it is), updates `Cargo.toml`, `Cargo.lock` and `CHANGELOG.md`, commits
+and tags `v<version>`, builds every platform and publishes the release with the changelog section
+as its notes. Record changes under `## Unreleased` at the top of `CHANGELOG.md` as you make them;
+the release turns that heading into the version number and date.
 
 **Build it yourself** with Rust (https://rustup.rs):
 

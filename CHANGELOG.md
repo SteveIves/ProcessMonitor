@@ -1,8 +1,9 @@
 # Changelog
 
-Newest first.
+Newest first. Add changes under "## Unreleased"; the Release workflow replaces that heading with the
+version number and date when it publishes a release.
 
-## 0.1.0 (2026-11-06)
+## Unreleased
 
 First version.
 
@@ -18,5 +19,6 @@ First version.
 - Outage log, heartbeat (dead man's switch) pings, optional start-up message.
 - `${ENV}` expansion in the config; strict checking of unknown keys.
 - Commands: `run` (default), `check`, `test-notify [--notifier]`, `validate`.
-- systemd service file, Windows scheduled-task install script, CI and release workflows building
-  static Linux (x86-64, arm64, armv7), Windows and macOS binaries.
+- systemd service file, Windows scheduled-task install script, CI workflow, and a Release workflow
+  that increases the version number automatically and publishes static Linux (x86-64, arm64,
+  armv7), Windows and macOS binaries.

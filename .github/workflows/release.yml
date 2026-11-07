@@ -1,15 +1,91 @@
-# Builds release binaries when a version tag (e.g. v0.1.0) is pushed, and attaches them to a
-# GitHub release:  git tag v0.1.0 && git push origin v0.1.0
+# Publishes a new release with an automatically incremented version number.
+#
+# Start it from the Actions tab (Release > Run workflow) or through the GitHub API
+# (workflow_dispatch). It:
+#   1. runs the tests and stops if any fail;
+#   2. works out the version: the version in Cargo.toml if it has never been released, otherwise
+#      that version with the chosen part (patch by default) increased;
+#   3. writes the version into Cargo.toml / Cargo.lock, turns the "## Unreleased" heading of
+#      CHANGELOG.md (if any) into "## <version> (<date>)", commits that to main as
+#      "Release v<version>" and tags it v<version>;
+#   4. builds every platform from that tag and publishes a GitHub release with the binaries, the
+#      example configs and the service files, using the changelog section as release notes.
 #
 # Linux builds are static (musl), so one file runs on any distribution, including Raspberry Pi OS.
 name: Release
 on:
-  push:
-    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which part of the version to increase (major.minor.patch)
+        type: choice
+        options: [patch, minor, major]
+        default: patch
 permissions:
   contents: write
+# Never run two releases at once: both would pick the same version number.
+concurrency:
+  group: release
+  cancel-in-progress: false
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test
+
+  version:
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # all tags, to see which versions were already released
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Work out the next version
+        id: next
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          current=$(sed -n 's/^version = "\([0-9]*\.[0-9]*\.[0-9]*\)"$/\1/p' Cargo.toml | head -1)
+          [ -n "$current" ] || { echo "no version found in Cargo.toml"; exit 1; }
+          if git rev-parse -q --verify "refs/tags/v$current" >/dev/null; then
+            IFS=. read -r major minor patch <<< "$current"
+            case "$BUMP" in
+              major) next="$((major + 1)).0.0" ;;
+              minor) next="$major.$((minor + 1)).0" ;;
+              *)     next="$major.$minor.$((patch + 1))" ;;
+            esac
+          else
+            next="$current" # first release of this version: use it as it is
+          fi
+          if git rev-parse -q --verify "refs/tags/v$next" >/dev/null; then
+            echo "v$next already exists"; exit 1
+          fi
+          echo "Releasing v$next (Cargo.toml had $current)"
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+      - name: Commit and tag the release
+        env:
+          VERSION: ${{ steps.next.outputs.version }}
+        run: |
+          # Only the [package] version line (the first `version = "x.y.z"` line) changes.
+          sed -i "0,/^version = \"[0-9.]*\"$/s//version = \"$VERSION\"/" Cargo.toml
+          cargo update --workspace # updates this package's own entry in Cargo.lock only
+          if grep -q '^## Unreleased' CHANGELOG.md; then
+            sed -i "s/^## Unreleased.*/## $VERSION ($(date -u +%Y-%m-%d))/" CHANGELOG.md
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml Cargo.lock CHANGELOG.md
+          git diff --cached --quiet || git commit -m "Release v$VERSION"
+          git tag -a "v$VERSION" -m "Process Monitor $VERSION"
+          git push origin HEAD:main "v$VERSION"
+
   build:
+    needs: version
     strategy:
       matrix:
         include:
@@ -21,6 +97,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.version.outputs.version }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -38,18 +116,31 @@ jobs:
         with:
           name: ${{ matrix.name }}
           path: dist/*
+
   release:
-    needs: build
+    needs: [version, build]
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.version.outputs.version }}
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
       - name: Add example config and service files
         run: cp monitor.example.toml notifiers.example.toml contrib/process-monitor.service contrib/install-windows.ps1 dist/
+      - name: Release notes from CHANGELOG.md
+        # The lines under "## <version>" up to the next "## " heading.
+        run: |
+          awk -v v="$VERSION" '/^## / { on = ($2 == v); next } on' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "Process Monitor $VERSION" > notes.md
+          cat notes.md
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ needs.version.outputs.version }}
+          name: Process Monitor ${{ needs.version.outputs.version }}
+          body_path: notes.md
           files: dist/*
-          generate_release_notes: true
