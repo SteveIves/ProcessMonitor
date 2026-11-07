@@ -1,0 +1,55 @@
+# Builds release binaries when a version tag (e.g. v0.1.0) is pushed, and attaches them to a
+# GitHub release:  git tag v0.1.0 && git push origin v0.1.0
+#
+# Linux builds are static (musl), so one file runs on any distribution, including Raspberry Pi OS.
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-musl,      os: ubuntu-latest,  name: process-monitor-linux-x86_64,  apt: "" }
+          - { target: aarch64-unknown-linux-musl,     os: ubuntu-latest,  name: process-monitor-linux-arm64,   apt: gcc-aarch64-linux-gnu }
+          - { target: armv7-unknown-linux-musleabihf, os: ubuntu-latest,  name: process-monitor-linux-armv7,   apt: gcc-arm-linux-gnueabihf }
+          - { target: x86_64-pc-windows-msvc,         os: windows-latest, name: process-monitor-windows-x86_64.exe }
+          - { target: aarch64-apple-darwin,           os: macos-latest,   name: process-monitor-macos-arm64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - if: matrix.apt != '' && matrix.apt != null
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.apt }}
+      - run: cargo build --release --target ${{ matrix.target }}
+      - name: Collect binary
+        shell: bash
+        run: |
+          mkdir dist
+          src=target/${{ matrix.target }}/release/process-monitor
+          [ -f "$src.exe" ] && src="$src.exe"
+          cp "$src" "dist/${{ matrix.name }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: dist/*
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Add example config and service files
+        run: cp monitor.example.toml notifiers.example.toml contrib/process-monitor.service contrib/install-windows.ps1 dist/
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

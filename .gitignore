@@ -1,0 +1,5 @@
+/target
+# Your own config, secrets and logs stay out of git; the *.example.toml files are the templates.
+/monitor.toml
+/secrets.env
+*.log

@@ -1,0 +1,244 @@
+# Every supported notifier, ready to copy into monitor.toml.
+#
+# Copy the [[notifier]] blocks you want and replace the placeholder values. Keys marked "optional"
+# can be left out. Every notifier also accepts:
+#   name   = "phone"              # used in logs and `process-monitor test-notify --notifier phone`
+#   events = ["down", "up"]       # only these events (default: down, up, reminder, startup, test)
+#
+# Phone numbers are in international format ("+15551234567"). `to` takes one value or a list.
+# SMS notifiers send a one-line summary, cut to `max_length` characters (optional, default 160 =
+# one text message; 306 allows two).
+#
+# The test suite parses this file, so every block here is known to be valid.
+
+# ==============================================================================================
+# Push notifications and chat
+# ==============================================================================================
+
+# ntfy (https://ntfy.sh): free. Install the app, subscribe to your topic.
+[[notifier]]
+type = "ntfy"
+topic = "pick-something-unguessable"
+server = "https://ntfy.sh"          # optional: your own ntfy server
+# token = "tk_..."                  # optional: for protected topics (or username + password)
+priority = 5                        # optional: 1-5 for down/reminder alerts (default 5 = urgent)
+tags = ["computer"]                 # optional: extra tags / emoji short codes
+
+# Pushover (https://pushover.net): one-off app purchase. priority = 2 repeats the alert every
+# minute until you acknowledge it.
+[[notifier]]
+type = "pushover"
+token = "your-application-token"
+user = "your-user-key"
+priority = 1                        # optional: -2..2 for down/reminder alerts (default 1)
+sound = "siren"                     # optional: sound for down/reminder alerts
+# device = "iphone"                 # optional: one device only
+
+# Gotify (https://gotify.net): self-hosted.
+[[notifier]]
+type = "gotify"
+server = "https://gotify.example.com"
+token = "application-token"
+priority = 8                        # optional: for down/reminder alerts (default 8)
+
+# Telegram: create a bot with @BotFather, send it a message, then find your chat id at
+# https://api.telegram.org/bot<token>/getUpdates
+[[notifier]]
+type = "telegram"
+bot_token = "123456789:AA..."
+chat_id = 123456789                 # your user id, a group id (negative) or "@channelname"
+
+# Discord: Channel settings > Integrations > Webhooks > New Webhook > Copy URL.
+[[notifier]]
+type = "discord"
+webhook_url = "https://discord.com/api/webhooks/..."
+# username = "Process Monitor"         # optional
+
+# Slack incoming webhook. Also works for Mattermost and Rocket.Chat incoming webhooks.
+[[notifier]]
+type = "slack"
+webhook_url = "https://hooks.slack.com/services/..."
+
+# Microsoft Teams: in the channel, Workflows > "Post to a channel when a webhook request is
+# received", then copy the URL it gives you.
+[[notifier]]
+type = "teams"
+webhook_url = "https://prod-00.westus.logic.azure.com/workflows/..."
+
+# Google Chat: Space > Apps & integrations > Webhooks.
+[[notifier]]
+type = "google_chat"
+webhook_url = "https://chat.googleapis.com/v1/spaces/.../messages?key=...&token=..."
+
+# Matrix (e.g. Element). Use a separate bot account that has joined the room.
+[[notifier]]
+type = "matrix"
+homeserver = "https://matrix.org"
+access_token = "syt_..."
+room_id = "!abcdefghijk:matrix.org"  # Room settings > Advanced
+
+# Pushbullet: Settings > Account > Create access token.
+[[notifier]]
+type = "pushbullet"
+access_token = "o.abc..."
+# device_iden = "..."               # optional: one device only
+
+# Signal, through a signal-cli-rest-api server you run (https://github.com/bbernhard/signal-cli-rest-api).
+[[notifier]]
+type = "signal"
+api_url = "http://localhost:8080"
+number = "+15551234567"             # the registered number that sends
+recipients = ["+15557654321"]
+
+# Bark (iPhone): https://bark.day.app
+[[notifier]]
+type = "bark"
+device_key = "your-device-key"
+# server = "https://api.day.app"    # optional: your own Bark server
+level = "timeSensitive"             # optional: active, timeSensitive, passive or critical
+# sound = "alarm"                   # optional
+
+# PagerDuty Events API v2: each down check opens an incident, resolved when it's back up, so
+# PagerDuty's phone call / SMS / escalation rules apply. Use an "Events API v2" integration key.
+[[notifier]]
+type = "pagerduty"
+routing_key = "your-integration-key"
+
+# Generic webhook, for anything else (Home Assistant, n8n, IFTTT, Apprise, your own script).
+# Without `body`, sends JSON: {"event", "title", "message", "short", "checks", "monitor"}.
+[[notifier]]
+name = "home-assistant"
+type = "webhook"
+url = "http://homeassistant.local:8123/api/webhook/process-monitor"
+# method = "POST"                   # optional
+# headers = { Authorization = "Bearer ..." }   # optional
+# Optional template; {event} {title} {message} {short} {monitor} are filled in (JSON-escaped when
+# content_type is JSON).
+# body = '{"text": "{title}: {short}"}'
+# content_type = "application/json"
+
+# ==============================================================================================
+# SMS
+# ==============================================================================================
+
+# Twilio: Console > Account info. Use `from` (a Twilio number) or `messaging_service_sid`.
+[[notifier]]
+type = "twilio"
+account_sid = "AC..."
+auth_token = "your-auth-token"
+from = "+15550001111"
+# messaging_service_sid = "MG..."   # instead of `from`
+to = "+15557654321"
+
+# Vonage (formerly Nexmo) SMS API.
+[[notifier]]
+type = "vonage"
+api_key = "abcd1234"
+api_secret = "your-secret"
+from = "+15550001111"               # a number, or a sender name where allowed
+to = "+15557654321"
+
+# Plivo.
+[[notifier]]
+type = "plivo"
+auth_id = "MA..."
+auth_token = "your-auth-token"
+from = "+15550001111"
+to = "+15557654321"
+
+# Telnyx. Use `from` (a Telnyx number) or `messaging_profile_id`.
+[[notifier]]
+type = "telnyx"
+api_key = "KEY..."
+from = "+15550001111"
+# messaging_profile_id = "..."
+to = "+15557654321"
+
+# Sinch SMS.
+[[notifier]]
+type = "sinch"
+service_plan_id = "your-service-plan-id"
+api_token = "your-api-token"
+from = "+15550001111"
+to = "+15557654321"
+region = "us"                       # optional: us, eu, au, br or ca
+
+# ClickSend.
+[[notifier]]
+type = "clicksend"
+username = "your-username"
+api_key = "your-api-key"
+# from = "+15550001111"             # optional
+to = "+15557654321"
+
+# Infobip. base_url is shown on your Infobip dashboard.
+[[notifier]]
+type = "infobip"
+base_url = "https://xxxxxx.api.infobip.com"
+api_key = "your-api-key"
+from = "ProcessMonitor"
+to = "+15557654321"
+
+# TextBelt (https://textbelt.com). Without a key, sends ONE free text per day (testing only).
+[[notifier]]
+type = "textbelt"
+# key = "your-paid-key"             # optional (default: the free daily text)
+to = "+15557654321"
+
+# ==============================================================================================
+# Email
+# ==============================================================================================
+# All email notifiers take format = "full" (default) or "short". "short" sends the one-line SMS
+# text, for carrier email-to-SMS addresses, which turn an email into a free text message. US
+# examples: T-Mobile 5551234567@tmomail.net, Verizon 5551234567@vtext.com, US Cellular
+# 5551234567@email.uscc.net. (AT&T closed its gateway in 2025; others may follow.)
+
+# SMTP: any mail server. Gmail: smtp.gmail.com with an app password. Outlook.com:
+# smtp-mail.outlook.com. iCloud: smtp.mail.me.com. Amazon SES: email-smtp.<region>.amazonaws.com.
+[[notifier]]
+type = "smtp"
+host = "smtp.gmail.com"
+# port = 587                        # optional (default: 587 starttls, 465 tls, 25 none)
+security = "starttls"               # optional: starttls (default), tls or none
+username = "you@gmail.com"
+password = "your-app-password"
+from = "Process Monitor <you@gmail.com>"
+to = ["you@gmail.com", "5551234567@tmomail.net"]
+format = "full"
+
+# SendGrid. `from` must be a verified sender.
+[[notifier]]
+type = "sendgrid"
+api_key = "SG...."
+from = "monitor@example.com"
+to = "you@example.com"
+
+# Mailgun.
+[[notifier]]
+type = "mailgun"
+api_key = "your-api-key"
+domain = "mg.example.com"
+region = "us"                       # optional: us (default) or eu
+from = "Process Monitor <monitor@mg.example.com>"
+to = "you@example.com"
+
+# Postmark.
+[[notifier]]
+type = "postmark"
+server_token = "your-server-token"
+from = "monitor@example.com"
+to = "you@example.com"
+
+# Resend.
+[[notifier]]
+type = "resend"
+api_key = "re_..."
+from = "Process Monitor <monitor@example.com>"
+to = "you@example.com"
+
+# Brevo (formerly Sendinblue).
+[[notifier]]
+type = "brevo"
+api_key = "xkeysib-..."
+from = "monitor@example.com"
+to = "you@example.com"

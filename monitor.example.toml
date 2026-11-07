@@ -1,0 +1,119 @@
+# process-monitor configuration
+#
+# Copy this file to monitor.toml (next to the program, or pass --config <file>), edit it, then run
+#   process-monitor validate      # check the file
+#   process-monitor check         # run every check once
+#   process-monitor test-notify   # send a test message to every notifier
+#
+# Any string value may contain ${NAME}, which is replaced by the environment variable NAME. Use it to
+# keep passwords and API keys out of this file (see README, "Keeping secrets out of the config").
+#
+# Durations are written like "30s", "5m", "1h 30m".
+
+[monitor]
+# Shown in every message, so you know which monitor sent it.
+name = "pi-monitor"
+# Time between rounds of checks.
+interval = "1m"
+# A check must fail this many rounds in a row before you're alerted (3 x 1m = alert after ~3 min).
+failures_before_alert = 3
+# ...and succeed this many rounds in a row before it counts as back up.
+successes_before_recovery = 2
+# While something stays down, remind me this often ("0s" = never).
+repeat_alert_every = "1h"
+# Send a message when the monitor starts (handy to learn that the Pi itself rebooted).
+notify_on_start = true
+# Every FAILING / DOWN / UP event is appended here with a timestamp, to compare with the server's
+# own logs afterwards. Relative paths are relative to this file.
+outage_log = "outages.log"
+
+# ----------------------------------------------------------------------------------------------
+# Checks. Every check runs each round. Checks with `alert = false` never alert on their own, but
+# their state is listed in every alert, which tells you *what* failed:
+#
+#   public sites  server-web  server-ssh  internet  meaning
+#   down          ok          ok          ok        Cloudflare / tunnel problem, not the server
+#   down          down        ok          ok        web server or PHP stuck, machine alive
+#   down          down        down        ok        the whole server is hung or off
+#   down          -           -           down      the monitor's own internet connection is down
+# ----------------------------------------------------------------------------------------------
+
+[[check]]
+name = "Gallery 1"
+type = "http"
+url = "https://photos.example.com/"
+# Text that must be on the page; catches error pages that still return 200. Optional.
+# contains = "PhotoGallery"
+timeout = "15s"
+
+[[check]]
+name = "Gallery 2"
+type = "http"
+url = "https://gallery.example.org/"
+timeout = "15s"
+
+# The server directly on the local network, bypassing Cloudflare. If the web server only
+# answers for its real host name, add  headers = { Host = "photos.example.com" }
+[[check]]
+name = "server-web"
+type = "http"
+url = "http://192.168.1.50/"
+alert = false
+
+# Is the machine itself alive? (SSH port; any port the server always listens on will do.)
+[[check]]
+name = "server-ssh"
+type = "tcp"
+address = "192.168.1.50:22"
+timeout = "5s"
+alert = false
+
+# Is the monitor's own internet connection working?
+[[check]]
+name = "internet"
+type = "http"
+url = "https://www.cloudflare.com/"
+alert = false
+
+# ----------------------------------------------------------------------------------------------
+# Notifiers. Use as many as you like; each gets every message unless `events` limits it to some
+# of: "down", "up", "reminder", "startup", "test".
+# notifiers.example.toml has a ready-made entry for every supported provider.
+# ----------------------------------------------------------------------------------------------
+
+# Free push notifications: install the ntfy app and subscribe to the same (unguessable) topic.
+[[notifier]]
+type = "ntfy"
+topic = "pi-monitor-change-me-7f3a9c"
+
+# Email through Gmail (needs an app password: Google Account > Security > App passwords).
+[[notifier]]
+name = "email"
+type = "smtp"
+host = "smtp.gmail.com"
+username = "you@gmail.com"
+password = "${SMTP_PASSWORD}"
+from = "Process Monitor <you@gmail.com>"
+to = "you@gmail.com"
+
+# Text messages for outages only, through your carrier's free email-to-SMS address
+# (T-Mobile: number@tmomail.net, Verizon: number@vtext.com, ...).
+# [[notifier]]
+# name = "text"
+# type = "smtp"
+# events = ["down", "up"]
+# host = "smtp.gmail.com"
+# username = "you@gmail.com"
+# password = "${SMTP_PASSWORD}"
+# from = "you@gmail.com"
+# to = "5551234567@tmomail.net"
+# format = "short"
+
+# ----------------------------------------------------------------------------------------------
+# Dead man's switch: pinged after each round (at most every `interval`). Set up a free check at
+# healthchecks.io (or Uptime Kuma "push", Better Stack heartbeat, Cronitor) that alerts you when
+# the pings stop, so you hear about it if the Pi itself dies.
+# ----------------------------------------------------------------------------------------------
+# [heartbeat]
+# url = "https://hc-ping.com/your-uuid-here"
+# interval = "5m"

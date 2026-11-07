@@ -1,0 +1,46 @@
+# systemd service for process-monitor (Linux, including Raspberry Pi OS).
+#
+# Install (see README, "Running on Linux / Raspberry Pi"):
+#   sudo install -m 755 process-monitor /usr/local/bin/
+#   sudo mkdir -p /etc/process-monitor
+#   sudo install -m 644 monitor.toml /etc/process-monitor/
+#   sudo install -m 600 /dev/null /etc/process-monitor/secrets.env    # then add NAME=value lines
+#   sudo install -m 644 contrib/process-monitor.service /etc/systemd/system/
+#   sudo systemctl enable --now process-monitor
+#
+# Logs: journalctl -u process-monitor -f
+# Outage log: set  outage_log = "/var/lib/process-monitor/outages.log"  in monitor.toml.
+
+[Unit]
+Description=process-monitor website and server monitor
+Documentation=https://github.com/steveives/process-monitor
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/process-monitor --config /etc/process-monitor/monitor.toml
+# Secrets referenced as ${NAME} in monitor.toml. Read by systemd as root, so this file can be
+# private (mode 600) while the service itself runs unprivileged.
+EnvironmentFile=-/etc/process-monitor/secrets.env
+Restart=always
+RestartSec=10
+
+# Run as a throwaway unprivileged user with a writable /var/lib/process-monitor for the outage log.
+DynamicUser=yes
+StateDirectory=process-monitor
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target
